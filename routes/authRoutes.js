@@ -47,5 +47,67 @@ router.post("/register", async (req, res) => {
 });
 
 
+// LOGIN USER
+router.post("/login", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const usersCollection = db.collection("users");
+
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).send({ message: "Email and password are required" });
+    }
+
+    // Find user by email
+    const user = await usersCollection.findOne({ email });
+    if (!user) {
+      return res.status(401).send({ message: "Invalid credentials" });
+    }
+
+    // Check if user is blocked
+    if (user.status && user.status === "blocked") {
+      return res.status(403).send({ message: "User is blocked. Contact admin." });
+    }
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).send({ message: "Invalid credentials" });
+    }
+
+    // Create JWT payload (keep it small)
+    const payload = {
+      userId: user._id.toString(),
+      role: user.role,
+      email: user.email,
+    };
+
+    // Sign token
+    const token = require("jsonwebtoken").sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES || "7d",
+    });
+
+    // Respond with token and safe user data
+    res.send({
+      message: "Login successful",
+      token,
+      user: {
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role,
+        status: user.status,
+        bloodGroup: user.bloodGroup,
+        district: user.district,
+        upazila: user.upazila,
+      },
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).send({ message: "Server error during login" });
+  }
+});
+
+
 
 module.exports = router;

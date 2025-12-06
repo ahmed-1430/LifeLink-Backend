@@ -109,5 +109,68 @@ router.post("/login", async (req, res) => {
 });
 
 
+const verifyJWT = require("../middleware/verifyJWT");
+const { ObjectId } = require("mongodb");
+
+// GET USER PROFILE
+router.get("/profile", verifyJWT, async (req, res) => {
+  try {
+    const db = await connectDB();
+    const usersCollection = db.collection("users");
+
+    const userId = req.user.userId;
+
+    const user = await usersCollection.findOne(
+      { _id: new ObjectId(userId) },
+      { projection: { password: 0 } } // never return password
+    );
+
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    res.send(user);
+  } catch (error) {
+    console.error("Profile Fetch Error:", error);
+    res.status(500).send({ message: "Server error fetching profile" });
+  }
+});
+
+
+// UPDATE USER PROFILE
+router.put("/profile", verifyJWT, async (req, res) => {
+  try {
+    const db = await connectDB();
+    const usersCollection = db.collection("users");
+
+    const userId = req.user.userId;
+
+    // allowed updates only
+    const { name, avatar, district, upazila, bloodGroup } = req.body;
+
+    const updateDoc = {
+      $set: {
+        name,
+        avatar,
+        district,
+        upazila,
+        bloodGroup,
+      },
+    };
+
+    await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      updateDoc
+    );
+
+    res.send({ message: "Profile updated successfully" });
+  } catch (error) {
+    console.error("Profile Update Error:", error);
+    res.status(500).send({ message: "Server error updating profile" });
+  }
+});
+
+
+
 
 module.exports = router;

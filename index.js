@@ -1,15 +1,18 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const connectDB = require("./config/db");
+const connectDB = require("./config/db.js");
+
+const authRoutes = require("./routes/authRoutes.js");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Root Directory
-app.get("/", async (req, res) => {
-  await connectDB();
+// Use API routes
+app.use("/api", authRoutes);
+
+app.get("/", (req, res) => {
   res.send("LifeLink Server Running...");
 });
 

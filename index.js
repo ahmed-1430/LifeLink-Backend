@@ -3,19 +3,25 @@ const cors = require("cors");
 require("dotenv").config();
 const connectDB = require("./config/db.js");
 
-// auth login---- register-- profile-- get/update
+// All Routes files
 const authRoutes = require("./routes/authRoutes.js");
 
 const donationRoutes = require("./routes/donationRoutes.js");
+
+const adminRoutes = require("./routes/adminRoutes.js");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Use API routes
+// Use API for All routes
 app.use("/api", authRoutes);
 
 app.use("/api", donationRoutes);
+
+
+app.use("/api", adminRoutes);
+
 
 
 app.get("/", (req, res) => {

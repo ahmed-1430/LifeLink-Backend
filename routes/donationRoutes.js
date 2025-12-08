@@ -212,6 +212,12 @@ router.patch("/donation/accept/:id", verifyJWT, async (req, res) => {
 // inprogress => done
 router.patch("/donation/done/:id", verifyJWT, async (req, res) => {
     try {
+        const user = req.userInfo;
+
+        if (user.role !== "admin" && user.role !== "volunteer") {
+            return res.status(403).send({ message: "Only admin/volunteer can mark as done" });
+        }
+
         const db = await connectDB();
         const collection = db.collection("donationRequests");
 
@@ -230,6 +236,12 @@ router.patch("/donation/done/:id", verifyJWT, async (req, res) => {
 // in progress => cancel
 router.patch("/donation/cancel/:id", verifyJWT, async (req, res) => {
     try {
+        const user = req.userInfo;
+
+        if (user.role !== "admin" && user.role !== "volunteer") {
+            return res.status(403).send({ message: "Only admin/volunteer can cancel donation" });
+        }
+
         const db = await connectDB();
         const collection = db.collection("donationRequests");
 
@@ -243,5 +255,6 @@ router.patch("/donation/cancel/:id", verifyJWT, async (req, res) => {
         res.status(500).send({ message: "Error updating status" });
     }
 });
+
 
 module.exports = router;

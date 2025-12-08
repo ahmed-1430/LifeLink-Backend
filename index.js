@@ -9,6 +9,8 @@ const authRoutes = require("./routes/authRoutes.js");
 const donationRoutes = require("./routes/donationRoutes.js");
 
 const adminRoutes = require("./routes/adminRoutes.js");
+const geoRoutes = require("./routes/geoRoutes.js");
+
 
 const app = express();
 app.use(cors());
@@ -21,6 +23,9 @@ app.use("/api", donationRoutes);
 
 
 app.use("/api", adminRoutes);
+
+app.use("/api", geoRoutes);
+
 
 
 

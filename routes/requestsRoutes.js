@@ -1,3 +1,11 @@
+// routes/requestsRoutes.js
+const express = require("express");
+const { ObjectId } = require("mongodb");
+const connectDB = require("../config/db");
+const { requireAuth, requireRole } = require("../middleware/authMiddleware"); // see middleware below (or adapt to your project)
+
+const router = express.Router();
+
 // Complete a request (volunteer)
 router.post("/:id/complete", requireAuth, requireRole("volunteer"), async (req, res) => {
     const requestId = req.params.id;
@@ -47,3 +55,6 @@ router.post("/:id/complete", requireAuth, requireRole("volunteer"), async (req, 
         return res.status(500).json({ message: "Server error" });
     }
 });
+
+
+module.exports = router;

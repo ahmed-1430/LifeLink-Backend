@@ -12,6 +12,7 @@ const adminRoutes = require("./routes/adminRoutes.js");
 const geoRoutes = require("./routes/geoRoutes.js");
 const fundRoutes = require("./routes/fundRoutes.js");
 const requestsRoutes = require("./routes/requestsRoutes");
+const notificationRoutes = require("./routes/notificationRoutes.js")
 
 
 const app = express();
@@ -31,6 +32,8 @@ app.use("/api", geoRoutes);
 app.use("/api", fundRoutes);
 
 app.use("/api/requests", requestsRoutes);
+
+app.use("/api/notifications", notificationRoutes);
 
 
 

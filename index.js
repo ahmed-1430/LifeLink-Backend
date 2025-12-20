@@ -40,6 +40,7 @@ app.use("/api/volunteer", volunteerRoutes);
 
 
 
+
 app.get("/", (req, res) => {
   res.send("LifeLink Server Running...");
 });

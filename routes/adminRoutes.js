@@ -128,4 +128,28 @@ router.patch("/users/make-admin/:id", verifyJWT, async (req, res) => {
   }
 });
 
+// Admin: get all requests
+router.get("/requests", verifyJWT, async (req, res) => {
+  try {
+    const user = req.userInfo;
+
+    if (user.role !== "admin") {
+      return res.status(403).send({ message: "Admin access only" });
+    }
+
+    const db = await connectDB();
+    const requests = await db
+      .collection("requests")
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(requests);
+  } catch (err) {
+    console.error("Admin fetch requests error:", err);
+    res.status(500).send({ message: "Server error" });
+  }
+});
+
+
 module.exports = router;

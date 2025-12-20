@@ -171,22 +171,6 @@ router.put("/profile", verifyJWT, async (req, res) => {
 });
 
 
-// Get all requests (admin)
-router.get("/requests", requireAuth, requireRole("admin"), async (req, res) => {
-  try {
-    const db = await connectDB();
-    const requests = await db
-      .collection("requests")
-      .find({})
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    res.json(requests);
-  } catch (err) {
-    console.error("Admin fetch requests error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
 
 
 

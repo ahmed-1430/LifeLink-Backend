@@ -14,6 +14,7 @@ const fundRoutes = require("./routes/fundRoutes.js");
 const requestsRoutes = require("./routes/requestsRoutes");
 const notificationRoutes = require("./routes/notificationRoutes.js")
 const volunteerRoutes = require("./routes/volunteerRoutes.js")
+const donorRoutes = require("./routes/donorRoutes");
 
 
 const app = express();
@@ -36,6 +37,8 @@ app.use("/api/requests", requestsRoutes);
 
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/volunteer", volunteerRoutes);
+
+app.use("/api/donors", donorRoutes);
 
 
 

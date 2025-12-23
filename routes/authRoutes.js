@@ -80,7 +80,10 @@ router.post("/login", async (req, res) => {
       userId: user._id.toString(),
       role: user.role,
       email: user.email,
+      name: user.name,          
+      avatar: user.avatar || "", 
     };
+
 
     // Sign token
     const token = require("jsonwebtoken").sign(payload, process.env.JWT_SECRET, {

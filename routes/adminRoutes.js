@@ -107,34 +107,60 @@ router.patch("/users/make-volunteer/:id", verifyJWT, async (req, res) => {
 // MAKE ADMIN
 router.patch("/users/make-admin/:id", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfo;
+    const requester = req.userInfo;
+    const targetUserId = req.params.id;
 
-    if (user.role !== "admin") {
+    if (requester.role !== "admin") {
       return res.status(403).send({ message: "Admin access only" });
+    }
+
+    if (requester.userId === targetUserId) {
+      return res
+        .status(400)
+        .send({ message: "You cannot change your own role" });
+    }
+
+    if (!ObjectId.isValid(targetUserId)) {
+      return res.status(400).send({ message: "Invalid user id" });
     }
 
     const db = await connectDB();
     const usersCollection = db.collection("users");
 
+    const user = await usersCollection.findOne({
+      _id: new ObjectId(targetUserId),
+    });
+
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    if (user.role === "admin") {
+      return res
+        .status(409)
+        .send({ message: "User is already an admin" });
+    }
+
     await usersCollection.updateOne(
-      { _id: new ObjectId(req.params.id) },
+      { _id: new ObjectId(targetUserId) },
       { $set: { role: "admin" } }
     );
 
-    res.send({ message: "User promoted to admin" });
+    res.send({ message: "User promoted to admin successfully" });
   } catch (error) {
     console.error("Make Admin Error:", error);
     res.status(500).send({ message: "Error promoting user" });
   }
 });
 
+
 // Admin: get all requests
 router.get("/requests", verifyJWT, async (req, res) => {
   try {
     const user = req.userInfo;
 
-    if (user.role !== "admin") {
-      return res.status(403).send({ message: "Admin access only" });
+    if (user.role !== "admin" || user.role !== "volunteer" || user.role !== "donor") {
+      return res.status(403).send({ message: "Access Denied" });
     }
 
     const db = await connectDB();

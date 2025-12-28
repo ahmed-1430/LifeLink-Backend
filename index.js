@@ -20,21 +20,13 @@ app.use(cors());
 app.use(express.json());
 
 // Use API for All routes
-app.use("/api", authRoutes);
-
-app.use("/api", donationRoutes);
-
-
-app.use("/api", adminRoutes);
-
-app.use("/api", geoRoutes);
-
-app.use("/api", fundRoutes);
-
-app.use("/api/volunteer", volunteerRoutes);
-
+app.use("/api/auth", authRoutes);
+app.use("/api/donations", donationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/geo", geoRoutes);
+app.use("/api/funds", fundRoutes);
 app.use("/api/donors", donorRoutes);
-
+app.use("/api/volunteer", volunteerRoutes);
 
 
 

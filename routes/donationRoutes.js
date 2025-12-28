@@ -6,131 +6,110 @@ const verifyJWT = require("../middleware/verifyJWT");
 const router = express.Router();
 
 /* ===============================
-   CREATE DONATION REQUEST (DONOR)
+   CREATE DONATION (DONOR)
 ================================ */
-router.post("/donation", verifyJWT, async (req, res) => {
-    try {
-        const db = await connectDB();
-        const collection = db.collection("donationRequests");
-        const user = req.userInfo;
-
-        if (user.status === "blocked") {
-            return res.status(403).send({ message: "Blocked users cannot create requests" });
-        }
-
-        const {
-            recipientName,
-            recipientDistrict,
-            recipientUpazila,
-            hospitalName,
-            fullAddress,
-            bloodGroup,
-            donationDate,
-            donationTime,
-            requestMessage,
-        } = req.body;
-
-        if (
-            !recipientName ||
-            !recipientDistrict ||
-            !recipientUpazila ||
-            !hospitalName ||
-            !fullAddress ||
-            !bloodGroup ||
-            !donationDate ||
-            !donationTime ||
-            !requestMessage
-        ) {
-            return res.status(400).send({ message: "All fields are required" });
-        }
-
-        const newRequest = {
-            requesterName: user.name,
-            requesterEmail: user.email,
-            recipientName,
-            recipientDistrict,
-            recipientUpazila,
-            hospitalName,
-            fullAddress,
-            bloodGroup,
-            donationDate,
-            donationTime,
-            requestMessage,
-            donationStatus: "pending",
-            donorInfo: null,
-            createdAt: new Date(),
-        };
-
-        await collection.insertOne(newRequest);
-        res.status(201).send({ message: "Donation request created" });
-    } catch (err) {
-        res.status(500).send({ message: "Server error" });
+router.post("/", verifyJWT, async (req, res) => {
+    const user = req.user;
+    if (user.role !== "donor") {
+        return res.status(403).send({ message: "Donor only" });
     }
+
+    const db = await connectDB();
+    const users = await db.collection("users").findOne({ email: user.email });
+
+    if (users.status === "blocked") {
+        return res.status(403).send({ message: "Blocked user" });
+    }
+
+    const data = req.body;
+
+    const donation = {
+        requesterName: user.name,
+        requesterEmail: user.email,
+        ...data,
+        donationStatus: "pending",
+        donorInfo: null,
+        createdAt: new Date(),
+    };
+
+    await db.collection("donationRequests").insertOne(donation);
+    res.send({ message: "Donation request created" });
 });
 
 /* ===============================
    MY REQUESTS (DONOR)
 ================================ */
-router.get("/my-requests", verifyJWT, async (req, res) => {
+router.get("/my", verifyJWT, async (req, res) => {
     const db = await connectDB();
     const requests = await db
         .collection("donationRequests")
-        .find({ requesterEmail: req.userInfo.email })
-        .sort({ createdAt: -1 })
+        .find({ requesterEmail: req.user.email })
         .toArray();
+
     res.send(requests);
 });
 
 /* ===============================
-   ALL REQUESTS (DONOR + VOL + ADMIN)
+   ALL REQUESTS (ADMIN + VOL)
 ================================ */
-router.get("/all-requests", verifyJWT, async (req, res) => {
+router.get("/", verifyJWT, async (req, res) => {
+    if (!["admin", "volunteer"].includes(req.user.role)) {
+        return res.status(403).send({ message: "Access denied" });
+    }
+
+    const { status } = req.query;
+    const query = status ? { donationStatus: status } : {};
+
     const db = await connectDB();
     const requests = await db
         .collection("donationRequests")
-        .find({})
+        .find(query)
         .sort({ createdAt: -1 })
         .toArray();
+
     res.send(requests);
 });
 
 /* ===============================
-   ACCEPT REQUEST
-   pending → inprogress
+   ACCEPT (pending → inprogress)
 ================================ */
-router.patch("/donation/accept/:id", verifyJWT, async (req, res) => {
-    const user = req.userInfo;
-    if (!["admin", "volunteer"].includes(user.role)) {
+router.patch("/:id/accept", verifyJWT, async (req, res) => {
+    if (!["admin", "volunteer"].includes(req.user.role)) {
         return res.status(403).send({ message: "Access denied" });
     }
 
     const db = await connectDB();
     await db.collection("donationRequests").updateOne(
-        { _id: new ObjectId(req.params.id) },
+        { _id: new ObjectId(req.params.id), donationStatus: "pending" },
         {
             $set: {
                 donationStatus: "inprogress",
-                donorInfo: { name: user.name, email: user.email },
+                donorInfo: { name: req.user.name, email: req.user.email },
             },
         }
     );
 
-    res.send({ message: "Request accepted" });
+    res.send({ message: "Donation accepted" });
 });
 
 /* ===============================
-   COMPLETE REQUEST
-   inprogress → done
+   DONE (DONOR OWN)
 ================================ */
-router.patch("/donation/done/:id", verifyJWT, async (req, res) => {
-    const user = req.userInfo;
-    if (!["admin", "volunteer"].includes(user.role)) {
-        return res.status(403).send({ message: "Access denied" });
+router.patch("/:id/done", verifyJWT, async (req, res) => {
+    const db = await connectDB();
+
+    const request = await db.collection("donationRequests").findOne({
+        _id: new ObjectId(req.params.id),
+        requesterEmail: req.user.email,
+        donationStatus: "inprogress",
+    });
+
+    if (!request) {
+        return res.status(403).send({ message: "Not allowed" });
     }
 
-    const db = await connectDB();
     await db.collection("donationRequests").updateOne(
-        { _id: new ObjectId(req.params.id) },
+        { _id: request._id },
         { $set: { donationStatus: "done" } }
     );
 
@@ -138,17 +117,22 @@ router.patch("/donation/done/:id", verifyJWT, async (req, res) => {
 });
 
 /* ===============================
-   CANCEL REQUEST
+   CANCEL (DONOR OWN)
 ================================ */
-router.patch("/donation/cancel/:id", verifyJWT, async (req, res) => {
-    const user = req.userInfo;
-    if (!["admin", "volunteer"].includes(user.role)) {
-        return res.status(403).send({ message: "Access denied" });
+router.patch("/:id/cancel", verifyJWT, async (req, res) => {
+    const db = await connectDB();
+
+    const request = await db.collection("donationRequests").findOne({
+        _id: new ObjectId(req.params.id),
+        requesterEmail: req.user.email,
+    });
+
+    if (!request) {
+        return res.status(403).send({ message: "Not allowed" });
     }
 
-    const db = await connectDB();
     await db.collection("donationRequests").updateOne(
-        { _id: new ObjectId(req.params.id) },
+        { _id: request._id },
         { $set: { donationStatus: "canceled" } }
     );
 

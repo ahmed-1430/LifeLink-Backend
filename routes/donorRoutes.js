@@ -8,7 +8,7 @@ const router = express.Router();
  * GET MATCHING DONORS
  * /api/donors/match?bloodGroup=&district=&upazila=
  */
-router.get("/match", verifyJWT, async (req, res) => {
+router.get("/match", async (req, res) => {
   try {
     const { bloodGroup, district, upazila } = req.query;
 
@@ -38,5 +38,6 @@ router.get("/match", verifyJWT, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 module.exports = router;

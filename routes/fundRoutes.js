@@ -39,7 +39,7 @@ router.post("/fund", verifyJWT, async (req, res) => {
     const db = await connectDB();
     const fundCollection = db.collection("funds");
 
-    const user = req.userInfo;
+    const user = req.userInfoInfo;
     const { amount, paymentId } = req.body;
 
     const funding = {
@@ -63,7 +63,7 @@ router.post("/fund", verifyJWT, async (req, res) => {
 
 router.get("/funds", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfo;
+    const user = req.userInfoInfo;
 
     if (user.role !== "admin" && user.role !== "volunteer") {
       return res.status(403).send({ message: "Only admin or volunteer allowed" });
@@ -86,7 +86,7 @@ router.get("/funds", verifyJWT, async (req, res) => {
 
 router.get("/funds/total", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfo;
+    const user = req.userInfoInfo;
 
     if (user.role !== "admin" && user.role !== "volunteer") {
       return res.status(403).send({ message: "Only admin or volunteer allowed" });

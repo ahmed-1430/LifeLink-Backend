@@ -12,7 +12,7 @@ const requireAuth = async (req, res, next) => {
         const token = auth.split(" ")[1];
         const payload = jwt.verify(token, process.env.JWT_SECRET);
         // payload should contain user id and role (depends on your login implementation)
-        req.user = {
+        req.userInfo = {
             _id: payload._id || payload.id || payload.userId,
             role: payload.role,
             name: payload.name,
@@ -26,11 +26,11 @@ const requireAuth = async (req, res, next) => {
 };
 
 const requireRole = (role) => (req, res, next) => {
-    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+    if (!req.userInfo) return res.status(401).json({ message: "Not authenticated" });
     if (Array.isArray(role)) {
-        if (!role.includes(req.user.role)) return res.status(403).json({ message: "Forbidden" });
+        if (!role.includes(req.userInfo.role)) return res.status(403).json({ message: "Forbidden" });
     } else {
-        if (req.user.role !== role) return res.status(403).json({ message: "Forbidden" });
+        if (req.userInfo.role !== role) return res.status(403).json({ message: "Forbidden" });
     }
     return next();
 };

@@ -8,7 +8,7 @@ const router = express.Router();
 // GET ALL USERS (Admin Only)
 router.get("/users", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfo;
+    const user = req.userInfoInfo;
 
     if (user.role !== "admin") {
       return res.status(403).send({ message: "Admin access only" });
@@ -32,7 +32,7 @@ router.get("/users", verifyJWT, async (req, res) => {
 // BLOCK USER
 router.patch("/users/block/:id", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfo;
+    const user = req.userInfoInfo;
 
     if (user.role !== "admin") {
       return res.status(403).send({ message: "Admin access only" });
@@ -57,7 +57,7 @@ router.patch("/users/block/:id", verifyJWT, async (req, res) => {
 // UNBLOCK USER
 router.patch("/users/unblock/:id", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfo;
+    const user = req.userInfoInfo;
 
     if (user.role !== "admin") {
       return res.status(403).send({ message: "Admin access only" });
@@ -82,7 +82,7 @@ router.patch("/users/unblock/:id", verifyJWT, async (req, res) => {
 // MAKE VOLUNTEER
 router.patch("/users/make-volunteer/:id", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfo;
+    const user = req.userInfoInfo;
 
     if (user.role !== "admin") {
       return res.status(403).send({ message: "Admin access only" });
@@ -107,7 +107,7 @@ router.patch("/users/make-volunteer/:id", verifyJWT, async (req, res) => {
 // MAKE ADMIN
 router.patch("/users/make-admin/:id", verifyJWT, async (req, res) => {
   try {
-    const requester = req.userInfo;
+    const requester = req.userInfoInfo;
     const targetUserId = req.params.id;
 
     if (requester.role !== "admin") {
@@ -157,7 +157,7 @@ router.patch("/users/make-admin/:id", verifyJWT, async (req, res) => {
 // Admin: get all requests
 router.get("/requests", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfo;
+    const user = req.userInfoInfo;
 
     if (user.role !== "admin" || user.role !== "volunteer" || user.role !== "donor") {
       return res.status(403).send({ message: "Access Denied" });

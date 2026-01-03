@@ -80,8 +80,8 @@ router.post("/login", async (req, res) => {
       userId: user._id.toString(),
       role: user.role,
       email: user.email,
-      name: user.name,          
-      avatar: user.avatar || "", 
+      name: user.name,
+      avatar: user.avatar || "",
     };
 
 
@@ -121,7 +121,7 @@ router.get("/profile", verifyJWT, async (req, res) => {
     const db = await connectDB();
     const usersCollection = db.collection("users");
 
-    const userId = req.user.userId;
+    const userId = req.userInfo.userId;
 
     const user = await usersCollection.findOne(
       { _id: new ObjectId(userId) },
@@ -146,7 +146,7 @@ router.put("/profile", verifyJWT, async (req, res) => {
     const db = await connectDB();
     const usersCollection = db.collection("users");
 
-    const userId = req.user.userId;
+    const userId = req.userInfo.userId;
 
     // allowed updates only
     const { name, avatar, district, upazila, bloodGroup } = req.body;

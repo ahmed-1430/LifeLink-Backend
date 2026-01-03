@@ -9,7 +9,7 @@ const router = express.Router();
    CREATE DONATION (DONOR)
 ================================ */
 router.post("/", verifyJWT, async (req, res) => {
-    const user = req.user;
+    const user = req.userInfo;
     if (user.role !== "donor") {
         return res.status(403).send({ message: "Donor only" });
     }
@@ -43,7 +43,7 @@ router.get("/my", verifyJWT, async (req, res) => {
     const db = await connectDB();
     const requests = await db
         .collection("donationRequests")
-        .find({ requesterEmail: req.user.email })
+        .find({ requesterEmail: req.userInfo.email })
         .toArray();
 
     res.send(requests);
@@ -53,7 +53,7 @@ router.get("/my", verifyJWT, async (req, res) => {
    ALL REQUESTS (ADMIN + VOL)
 ================================ */
 router.get("/", verifyJWT, async (req, res) => {
-    if (!["admin", "volunteer"].includes(req.user.role)) {
+    if (!["admin", "volunteer"].includes(req.userInfo.role)) {
         return res.status(403).send({ message: "Access denied" });
     }
 
@@ -74,7 +74,7 @@ router.get("/", verifyJWT, async (req, res) => {
    ACCEPT (pending → inprogress)
 ================================ */
 router.patch("/:id/accept", verifyJWT, async (req, res) => {
-    if (!["admin", "volunteer"].includes(req.user.role)) {
+    if (!["admin", "volunteer"].includes(req.userInfo.role)) {
         return res.status(403).send({ message: "Access denied" });
     }
 
@@ -84,7 +84,7 @@ router.patch("/:id/accept", verifyJWT, async (req, res) => {
         {
             $set: {
                 donationStatus: "inprogress",
-                donorInfo: { name: req.user.name, email: req.user.email },
+                donorInfo: { name: req.userInfo.name, email: req.userInfo.email },
             },
         }
     );
@@ -100,7 +100,7 @@ router.patch("/:id/done", verifyJWT, async (req, res) => {
 
     const request = await db.collection("donationRequests").findOne({
         _id: new ObjectId(req.params.id),
-        requesterEmail: req.user.email,
+        requesterEmail: req.userInfo.email,
         donationStatus: "inprogress",
     });
 
@@ -124,7 +124,7 @@ router.patch("/:id/cancel", verifyJWT, async (req, res) => {
 
     const request = await db.collection("donationRequests").findOne({
         _id: new ObjectId(req.params.id),
-        requesterEmail: req.user.email,
+        requesterEmail: req.userInfo.email,
     });
 
     if (!request) {

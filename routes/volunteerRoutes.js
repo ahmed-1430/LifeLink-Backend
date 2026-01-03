@@ -16,7 +16,7 @@ router.patch("/availability", requireAuth, requireRole("volunteer"), async (req,
     try {
         const db = await connectDB();
         await db.collection("users").updateOne(
-            { _id: new ObjectId(req.user._id) },
+            { _id: new ObjectId(req.userInfo._id) },
             { $set: { availability, district, upazila } }
         );
 

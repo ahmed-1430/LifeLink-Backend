@@ -8,9 +8,9 @@ const router = express.Router();
 // GET ALL USERS (Admin Only)
 router.get("/users", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfoInfo;
+    const user = req.userInfo || req.user;
 
-    if (user.role !== "admin") {
+    if (!user || user.role !== "admin") {
       return res.status(403).send({ message: "Admin access only" });
     }
 

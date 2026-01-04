@@ -9,7 +9,7 @@ const router = express.Router();
    CREATE DONATION (DONOR)
 ================================ */
 router.post("/", verifyJWT, async (req, res) => {
-    const user = req.userInfo;
+    const user = req.userInfo || req.user;;
     if (user.role !== "donor") {
         return res.status(403).send({ message: "Donor only" });
     }

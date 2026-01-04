@@ -1,23 +1,27 @@
 const jwt = require("jsonwebtoken");
 
-module.exports = function verifyJWT(req, res, next) {
+module.exports = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Unauthorized" });
+    return res.status(401).send({ message: "Unauthorized" });
   }
 
   const token = authHeader.split(" ")[1];
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(401).json({ message: "Invalid token" });
-    }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    //  IMPORTANT: support both styles
-    req.userInfo = decoded;
-    req.user = decoded;
+    //  FIX: unify naming
+    req.userInfo = {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+      name: decoded.name,
+    };
 
     next();
-  });
+  } catch (err) {
+    return res.status(401).send({ message: "Invalid token" });
+  }
 };

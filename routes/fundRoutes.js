@@ -63,7 +63,7 @@ router.post("/fund", verifyJWT, async (req, res) => {
 
 router.get("/funds", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfoInfo;
+    const user = req.userInfo || req.user;
 
     if (user.role !== "admin" && user.role !== "volunteer") {
       return res.status(403).send({ message: "Only admin or volunteer allowed" });
@@ -86,7 +86,7 @@ router.get("/funds", verifyJWT, async (req, res) => {
 
 router.get("/funds/total", verifyJWT, async (req, res) => {
   try {
-    const user = req.userInfoInfo;
+    const user = req.userInfo || req.user;
 
     if (user.role !== "admin" && user.role !== "volunteer") {
       return res.status(403).send({ message: "Only admin or volunteer allowed" });

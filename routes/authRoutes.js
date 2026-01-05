@@ -1,25 +1,30 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const connectDB = require("../config/db.js");
+const jwt = require("jsonwebtoken");
+const connectDB = require("../config/db");
+const verifyJWT = require("../middleware/verifyJWT");
+const { ObjectId } = require("mongodb");
 
 const router = express.Router();
 
-// REGISTER USER
+/* ===============================
+   REGISTER
+================================ */
 router.post("/register", async (req, res) => {
   try {
     const db = await connectDB();
-    const usersCollection = db.collection("users");
+    const users = db.collection("users");
 
     const { name, email, password, avatar, bloodGroup, district, upazila } =
       req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).send({ message: "All fields are required" });
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    const exists = await usersCollection.findOne({ email });
+    const exists = await users.findOne({ email });
     if (exists) {
-      return res.status(409).send({ message: "Email already registered" });
+      return res.status(409).json({ message: "Email already registered" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -28,7 +33,7 @@ router.post("/register", async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      avatar,
+      avatar: avatar || "",
       bloodGroup,
       district,
       upazila,
@@ -37,45 +42,39 @@ router.post("/register", async (req, res) => {
       createdAt: new Date(),
     };
 
-    await usersCollection.insertOne(newUser);
+    await users.insertOne(newUser);
 
-    res.send({ message: "Registration successful" });
-  } catch (error) {
-    console.error("Registration Error:", error);
-    res.status(500).send({ message: "Server error during registration" });
+    res.json({ message: "Registration successful" });
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ message: "Registration failed" });
   }
 });
 
-
-// LOGIN USER
+/* ===============================
+   LOGIN
+================================ */
 router.post("/login", async (req, res) => {
   try {
     const db = await connectDB();
-    const usersCollection = db.collection("users");
+    const users = db.collection("users");
 
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).send({ message: "Email and password are required" });
-    }
 
-    // Find user by email
-    const user = await usersCollection.findOne({ email });
+    const user = await users.findOne({ email });
     if (!user) {
-      return res.status(401).send({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Check if user is blocked
-    if (user.status && user.status === "blocked") {
-      return res.status(403).send({ message: "User is blocked. Contact admin." });
+    if (user.status === "blocked") {
+      return res.status(403).json({ message: "User is blocked" });
     }
 
-    // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).send({ message: "Invalid credentials" });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Create JWT payload (keep it small)
     const payload = {
       userId: user._id.toString(),
       role: user.role,
@@ -84,15 +83,11 @@ router.post("/login", async (req, res) => {
       avatar: user.avatar || "",
     };
 
-
-    // Sign token
-    const token = require("jsonwebtoken").sign(payload, process.env.JWT_SECRET, {
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES || "7d",
     });
 
-    // Respond with token and safe user data
-    res.send({
-      message: "Login successful",
+    res.json({
       token,
       user: {
         name: user.name,
@@ -105,76 +100,98 @@ router.post("/login", async (req, res) => {
         upazila: user.upazila,
       },
     });
-  } catch (error) {
-    console.error("Login Error:", error);
-    res.status(500).send({ message: "Server error during login" });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Login failed" });
   }
 });
 
-
-const verifyJWT = require("../middleware/verifyJWT");
-const { ObjectId } = require("mongodb");
-
-// GET USER PROFILE
+/* ===============================
+   GET PROFILE
+================================ */
 router.get("/profile", verifyJWT, async (req, res) => {
   try {
     const db = await connectDB();
-    const usersCollection = db.collection("users");
+    const users = db.collection("users");
 
-    const userId = req.userInfo.userId;
-
-    const user = await usersCollection.findOne(
-      { _id: new ObjectId(userId) },
-      { projection: { password: 0 } } // never return password
+    const user = await users.findOne(
+      { _id: new ObjectId(req.userInfo.userId) },
+      { projection: { password: 0 } }
     );
 
     if (!user) {
-      return res.status(404).send({ message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    res.send(user);
-  } catch (error) {
-    console.error("Profile Fetch Error:", error);
-    res.status(500).send({ message: "Server error fetching profile" });
+    res.json(user);
+  } catch (err) {
+    console.error("Profile error:", err);
+    res.status(500).json({ message: "Failed to load profile" });
   }
 });
 
-
-// UPDATE USER PROFILE
-router.put("/profile", verifyJWT, async (req, res) => {
+/* ===============================
+   UPDATE PROFILE
+================================ */
+router.patch("/profile", verifyJWT, async (req, res) => {
   try {
     const db = await connectDB();
-    const usersCollection = db.collection("users");
+    const users = db.collection("users");
 
-    const userId = req.userInfo.userId;
+    const updates = {};
+    ["name", "avatar", "district", "upazila", "bloodGroup"].forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    });
 
-    // allowed updates only
-    const { name, avatar, district, upazila, bloodGroup } = req.body;
-
-    const updateDoc = {
-      $set: {
-        name,
-        avatar,
-        district,
-        upazila,
-        bloodGroup,
-      },
-    };
-
-    await usersCollection.updateOne(
-      { _id: new ObjectId(userId) },
-      updateDoc
+    await users.updateOne(
+      { _id: new ObjectId(req.userInfo.userId) },
+      { $set: updates }
     );
 
-    res.send({ message: "Profile updated successfully" });
-  } catch (error) {
-    console.error("Profile Update Error:", error);
-    res.status(500).send({ message: "Server error updating profile" });
+    res.json({ message: "Profile updated" });
+  } catch (err) {
+    console.error("Update profile error:", err);
+    res.status(500).json({ message: "Failed to update profile" });
   }
 });
 
+/* ===============================
+   CHANGE PASSWORD (SECURITY TAB)
+================================ */
+router.patch("/password", verifyJWT, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
 
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
 
+    const db = await connectDB();
+    const users = db.collection("users");
 
+    const user = await users.findOne({
+      _id: new ObjectId(req.userInfo.userId),
+    });
+
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) {
+      return res.status(401).json({ message: "Current password incorrect" });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await users.updateOne(
+      { _id: user._id },
+      { $set: { password: hashed } }
+    );
+
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error("Password change error:", err);
+    res.status(500).json({ message: "Failed to change password" });
+  }
+});
 
 module.exports = router;

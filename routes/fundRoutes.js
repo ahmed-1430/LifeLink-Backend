@@ -5,11 +5,12 @@ const { ObjectId } = require("mongodb");
 const Stripe = require("stripe");
 
 const router = express.Router();
-
-// Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-router.post("/create-payment-intent", verifyJWT, async (req, res) => {
+/* ===============================
+   CREATE STRIPE PAYMENT INTENT
+================================ */
+router.post("/create-intent", verifyJWT, async (req, res) => {
   try {
     const { amount } = req.body;
 
@@ -18,95 +19,86 @@ router.post("/create-payment-intent", verifyJWT, async (req, res) => {
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // convert to cents
+      amount: Math.round(amount * 100),
       currency: process.env.CURRENCY || "usd",
-      payment_method_types: ["card"],
     });
 
-    res.send({
-      clientSecret: paymentIntent.client_secret,
-    });
-
-  } catch (error) {
-    console.error("Stripe Error:", error);
-    res.status(500).send({ message: "Error creating payment intent" });
+    res.send({ clientSecret: paymentIntent.client_secret });
+  } catch (err) {
+    console.error("Stripe error:", err);
+    res.status(500).send({ message: "Payment intent failed" });
   }
 });
 
-
-router.post("/fund", verifyJWT, async (req, res) => {
+/* ===============================
+   SAVE FUND RECORD (AFTER PAYMENT)
+================================ */
+router.post("/", verifyJWT, async (req, res) => {
   try {
     const db = await connectDB();
-    const fundCollection = db.collection("funds");
+    const funds = db.collection("funds");
 
-    const user = req.userInfoInfo;
+    const user = req.userInfo;
     const { amount, paymentId } = req.body;
 
-    const funding = {
+    if (!amount || !paymentId) {
+      return res.status(400).send({ message: "Missing data" });
+    }
+
+    const record = {
+      userId: new ObjectId(user.userId),
       userName: user.name,
       userEmail: user.email,
       amount,
       paymentId,
-      date: new Date()
+      createdAt: new Date(),
     };
 
-    await fundCollection.insertOne(funding);
+    await funds.insertOne(record);
 
-    res.send({ message: "Funding record saved" });
-
-  } catch (error) {
-    console.error("Fund Save Error:", error);
-    res.status(500).send({ message: "Error saving funding record" });
+    res.send({ message: "Funding saved" });
+  } catch (err) {
+    console.error("Save fund error:", err);
+    res.status(500).send({ message: "Failed to save funding" });
   }
 });
 
+/* ===============================
+   GET ALL FUNDS (ADMIN / VOL)
+================================ */
+router.get("/", verifyJWT, async (req, res) => {
+  const user = req.userInfo;
 
-router.get("/funds", verifyJWT, async (req, res) => {
-  try {
-    const user = req.userInfo || req.user;
-
-    if (user.role !== "admin" && user.role !== "volunteer") {
-      return res.status(403).send({ message: "Only admin or volunteer allowed" });
-    }
-
-    const db = await connectDB();
-    const fundCollection = db.collection("funds");
-
-    const funds = await fundCollection.find().sort({ date: -1 }).toArray();
-
-    res.send(funds);
-
-  } catch (error) {
-    console.error("Get Funds Error:", error);
-    res.status(500).send({ message: "Error fetching funds" });
+  if (!["admin", "volunteer"].includes(user.role)) {
+    return res.status(403).send({ message: "Access denied" });
   }
+
+  const db = await connectDB();
+  const funds = await db
+    .collection("funds")
+    .find()
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  res.send(funds);
 });
 
+/* ===============================
+   GET TOTAL FUND AMOUNT
+================================ */
+router.get("/total", verifyJWT, async (req, res) => {
+  const user = req.userInfo;
 
-
-router.get("/funds/total", verifyJWT, async (req, res) => {
-  try {
-    const user = req.userInfo || req.user;
-
-    if (user.role !== "admin" && user.role !== "volunteer") {
-      return res.status(403).send({ message: "Only admin or volunteer allowed" });
-    }
-
-    const db = await connectDB();
-    const fundCollection = db.collection("funds");
-
-    const total = await fundCollection.aggregate([
-      { $group: { _id: null, totalAmount: { $sum: "$amount" } } }
-    ]).toArray();
-
-    res.send({ totalFunds: total[0]?.totalAmount || 0 });
-
-  } catch (error) {
-    console.error("Total Funds Error:", error);
-    res.status(500).send({ message: "Error calculating total funds" });
+  if (!["admin", "volunteer"].includes(user.role)) {
+    return res.status(403).send({ message: "Access denied" });
   }
-});
 
+  const db = await connectDB();
+  const result = await db.collection("funds").aggregate([
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]).toArray();
+
+  res.send({ total: result[0]?.total || 0 });
+});
 
 module.exports = router;
-

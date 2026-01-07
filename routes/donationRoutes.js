@@ -12,8 +12,8 @@ router.post("/", verifyJWT, async (req, res) => {
     try {
         const user = req.userInfo;
 
-        if (user.role !== "donor") {
-            return res.status(403).json({ message: "Donor only" });
+        if (!["donor", "volunteer", "admin"].includes(user.role)) {
+            return res.status(403).send({ message: "Access Denied" });
         }
 
         const db = await connectDB();
@@ -191,5 +191,42 @@ router.patch("/cancel/:id", verifyJWT, async (req, res) => {
         res.status(500).json({ message: "Failed to cancel donation" });
     }
 });
+
+// PATCH /donations/:id/donate
+// not implemented in client need to optimize and understand reqirements
+router.patch("/:id/donate", verifyJWT, async (req, res) => {
+    const user = req.userInfo;
+
+    if (user.role !== "donor") {
+        return res.status(403).send({ message: "Donor only" });
+    }
+
+    const db = await connectDB();
+
+    const request = await db.collection("donationRequests").findOne({
+        _id: new ObjectId(req.params.id),
+        donationStatus: "pending",
+    });
+
+    if (!request) {
+        return res.status(400).send({ message: "Request not available" });
+    }
+
+    await db.collection("donationRequests").updateOne(
+        { _id: request._id },
+        {
+            $set: {
+                donationStatus: "inprogress",
+                donorInfo: {
+                    name: user.name,
+                    email: user.email,
+                },
+            },
+        }
+    );
+
+    res.send({ message: "Donation confirmed" });
+});
+
 
 module.exports = router;
